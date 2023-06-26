@@ -96,8 +96,6 @@ button25 = [
 ]
 inline_kb24 = InlineKeyboardMarkup(inline_keyboard=button25)
 
-### ---___--- ОБЩЕЕ МЕНЮ ---___--- ###
-
 
 button32 = [
     [
