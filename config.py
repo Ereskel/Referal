@@ -9,9 +9,9 @@ admins = env.list('admin')
 
 
 
-channel = '@ttttxtxer'
-admin_user = '@Salerix'
-admins_id = 1605439713
+channel = '@'
+admin_user = '@'
+admins_id = 
 amount_per_one = 0.05
 minimal_vivod = 3
 usd_or_rub = 'rub'
