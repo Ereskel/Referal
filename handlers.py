@@ -28,6 +28,7 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 
+# Функция проверки статуса пользователя
 def check_sub_channel(chat_member):
     print(chat_member.status)
     if chat_member.status != 'left':
@@ -35,30 +36,39 @@ def check_sub_channel(chat_member):
     else:
         return False
 
-
+# Запуск бота. 
 @router.message(Command('start'))
 async def command_start(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
+    # создаем базу базу данных
     await create_database()
     user_id = message.from_user.id
     user_username = message.from_user.username
+    # проверяем существуте ли пользователь в БД
     if await select_user_id_where_user_id(user_id) is None:
         try:
+            # разбиваем строку полученную при старте и получаем значение referrer
             referrer = int(message.text.split()[1])
+            # если значение referrer не привязано ни к одному user_id устанавливаем начисление бонуса в ноль
             if user_id != referrer:
                 referrer_bonus = 0
+            # если значение привязано - бонус в единицу
             else:
                 referrer = None
                 referrer_bonus = 1
+        # исключение при разбивке строки
         except:
             referrer = None
             referrer_bonus = 1
+        # преобразование в нижний регистр (необязательно)
         try:
             user_username = user_username.lower()
         except:
             user_username = None
+        # Добавляем дату
         await adding_data(user_id, user_username, referrer, referrer_bonus,
                           datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
+    # Проверка подписок
     user_channel_status = await bot.get_chat_member(chat_id=channel, user_id=user_id)
     print(user_channel_status)
     user_channel_status = await bot.get_chat_member(chat_id=channel, user_id=user_id)
@@ -72,7 +82,7 @@ async def command_start(message: types.Message, state: FSMContext):
                                'каналы и нажмите "Готово"',
                                reply_markup=await update_follow_menu_keyboard(channel))
 
-
+# Проверка при нажатии на кнопку "проверить"
 @router.callback_query(Text('yes'))
 async def handler2(callback: CallbackQuery, state: FSMContext):
     print(callback.message.from_user.id)
@@ -92,7 +102,7 @@ async def handler2(callback: CallbackQuery, state: FSMContext):
 
 #      await bot.delete_message(chat_id=callback.message.chat.id, message_id = callback.message.message_id, text = 'В доступе отказано. Подпишитесь на все каналы.', reply_markup=inline_kb1)
 
-
+# Функции для добавления и изменения карты для заявки на вывод
 @router.message(Text('Привязать карту'))
 async def handler20(message: Message, state: FSMContext):
     await message.answer('Введите номер карты')
@@ -128,7 +138,7 @@ if usd_or_rub.lower() == "usd":
 elif usd_or_rub.lower() == "rub":
     сurrency_sign = "₽"
 
-
+# Актуальный курс криптовалют
 def get_price():
     if currency.upper() == "BTC":
         response = requests.get(
@@ -161,12 +171,14 @@ def get_price():
     return price
 
 
+# Реферальное меню пользователя
 @router.message(Text('Мой аккаунт'))
 async def handler41(message: Message):
     user_id = message.from_user.id
     await main_message(user_id)
 
 
+# Приветственное сообщение после проверки на подписку
 async def main_message(user_id):
     try:
         referrals = len(await select_user_id_where_referrer_id_and_referrer_bonus_1(user_id))
@@ -174,6 +186,7 @@ async def main_message(user_id):
         referrals = 0
     karta = await get_kard_number(user_id)
     print(karta)
+    # Проверяем: есть ли значение karta в таблице. Если есть, отправляем это сообщение,
     if karta[0][0] is not None:
         karta = await get_kard_number(user_id)
         kart_number = karta[0][0]
@@ -189,6 +202,7 @@ async def main_message(user_id):
                                f"<b>Реквизиты карты для вывода: <code>{kart_number}</code></b>",
                                #                          f"<b>Ваш ID: <code>{user_id}</code></b>",
                                reply_markup=default_kb81)
+        # если номера карты нет - это.
     else:
         await bot.send_message(user_id,
                                "<b>Добро пожаловать на борт!т</b>\n\n"
@@ -203,55 +217,14 @@ async def main_message(user_id):
                                reply_markup=default_kb2)
 
 
+# Если проверка на подписку не пройдена
 async def no_follow_message(user_id):
     await bot.send_message(user_id,
                            f"<b>Чтобы воспользоваться функционалом бота подпишитесь на <a href='https://t.me/{channel[1:]}'>канал</a> затем нажмите кнопку проверить.</b>\n\n",
                            reply_markup=await update_follow_menu_keyboard(channel))
 
 
-@router.message(Command("admin"))
-async def admin_menu(message: types.Message):
-    user_id = message.from_user.id
-    await message.delete()
-    await bot.send_message(admins_id,
-                           "<b>Включено админ меню</b>",
-                           reply_markup=default_kb23)
-
-
-@router.message(Text('Стать партнером!'))
-async def start_command(message: types.Message):
-    await create_database()
-    user_id = message.from_user.id
-    user_username = message.from_user.username
-    if await select_user_id_where_user_id(user_id) is None:
-        try:
-            referrer = int(message.text.split()[1])
-            if user_id != referrer:
-                referrer_bonus = 0
-            else:
-                referrer = None
-                referrer_bonus = 1
-        except:
-            referrer = None
-            referrer_bonus = 1
-        try:
-            user_username = user_username.lower()
-        except:
-            user_username = None
-        await adding_data(user_id, user_username, referrer, referrer_bonus,
-                          datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
-    user_channel_status = await bot.get_chat_member(chat_id=channel, user_id=user_id)
-    print(user_channel_status)
-    user_channel_status = await bot.get_chat_member(chat_id=channel, user_id=user_id)
-    if user_channel_status.status != "left":
-        await main_message(user_id)
-    else:
-        await no_follow_message(user_id)
-
-
-### ---___--- ЮЗЕР МЕНЮ ---___--- ###
-
-
+# Обновление баланса, вызываемое пользователем
 @router.callback_query(Text("update_balance"))
 async def update_balance_call(call: types.CallbackQuery):
     await call.message.delete()
@@ -269,6 +242,7 @@ async def update_balance_call(call: types.CallbackQuery):
         await no_follow_message(user_id)
 
 
+# Заявка на вывод баланса. Проверка на минимальную сумму вывода
 @router.message(Text("Вывести"))
 async def withdraw_funds_call(message: Message, state: FSMContext):
     user_id = message.from_user.id
@@ -283,6 +257,7 @@ async def withdraw_funds_call(message: Message, state: FSMContext):
         await state.set_state(withdrawal_of_balance.withdrawal_amount_state)
 
 
+# Уведомление пользователя при регистрации в боте нового реферала по его ссылке
 @router.callback_query(Text("update_follow"))
 async def update_follow_call(callback: CallbackQuery):
     await callback.message.delete()
@@ -308,6 +283,7 @@ async def update_follow_call(callback: CallbackQuery):
         await no_follow_message(user_id)
 
 
+# Заявка на вывод
 @router.message(withdrawal_of_balance.withdrawal_amount_state)
 async def withdraw_funds_call(message: Message):
     user_id = message.from_user.id
@@ -333,7 +309,7 @@ async def withdraw_funds_call(message: Message):
         if float(withdrawal_amount) > await select_user_balance_where_user_id(user_id):
             await message.delete()
             await bot.send_message(user_id,
-                                   "Не достаточно средств",
+                                   "Недостаточно средств",
                                    reply_markup=inline_kb26)
         elif minimal_vivod > float(withdrawal_amount):
             await message.delete()
@@ -342,9 +318,17 @@ async def withdraw_funds_call(message: Message):
                                    reply_markup=inline_kb26)
 
 
-### ---___--- АДМИН МЕНЮ ---___--- ###
+# Админ меню
+@router.message(Command("admin"))
+async def admin_menu(message: types.Message):
+    user_id = message.from_user.id
+    await message.delete()
+    await bot.send_message(admins_id,
+                           "<b>Включено админ меню</b>",
+                           reply_markup=default_kb23)
 
 
+# Вывод количества пользователей.
 @router.callback_query(Text("number_users"))
 async def number_users_admin(call: types.CallbackQuery):
     user_id = call.from_user.id
@@ -362,6 +346,7 @@ async def number_users_admin(call: types.CallbackQuery):
 #                           reply_markup=await info_menu_keyboard())
 
 
+# Отправка файла .db
 @router.callback_query(Text("download_database"))
 async def download_database_admin(callback: CallbackQuery):
     user_id = callback.from_user.id
@@ -370,6 +355,7 @@ async def download_database_admin(callback: CallbackQuery):
                             reply_markup=inline_kb26)
 
 
+# Отправка сообщения от лица бота пользователю
 @router.callback_query(Text("private_message"))
 async def private_message_admin(call: types.CallbackQuery):
     user_id = call.from_user.id
@@ -379,6 +365,7 @@ async def private_message_admin(call: types.CallbackQuery):
     await private_message.id_or_username_state.set()
 
 
+# Рассылка всем пользователям
 @router.callback_query(Text("mailing"))
 async def send_all_admin(call: types.CallbackQuery):
     user_id = call.from_user.id
@@ -388,6 +375,7 @@ async def send_all_admin(call: types.CallbackQuery):
     await receiving_a_message.receiving_message_state.set()
 
 
+# Изменение баланса
 @router.callback_query(Text("changing_balance"))
 async def changing_balance_admin(call: types.CallbackQuery):
     user_id = call.from_user.id
@@ -397,6 +385,7 @@ async def changing_balance_admin(call: types.CallbackQuery):
     await changing_the_balance.id_or_username_state.set()
 
 
+# Обработка сообщений в чате бота и пользователя
 @router.message(private_message.id_or_username_state)
 async def private_message_id_or_username_admin_handler(message: types.Message, state: FSMContext):
     await message.delete()
@@ -468,6 +457,7 @@ async def receiving_a_message_receiving_message_admin_handler(message: types.Mes
                            reply_markup=inline_kb26)
 
 
+# Обновление баланса (не в админ меню)
 @router.message(changing_the_balance.id_or_username_state)
 async def changing_the_balance_id_or_username_admin_handler(message: types.Message, state: FSMContext):
     username_or_id = message.text
@@ -501,6 +491,7 @@ async def changing_the_balance_id_or_username_admin_handler(message: types.Messa
             await state.finish()
 
 
+# Установка баланса (не в админ меню)
 @router.message(changing_the_balance.change_amount_state)
 async def changing_the_balance_change_amount_admin_handler(message: types.Message, state: FSMContext):
     change_amount_state = message.text
